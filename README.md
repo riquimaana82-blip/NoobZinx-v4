@@ -479,7 +479,8 @@ bConf.MouseButton1Click:Connect(function() mudarAba(bConf,ConfConteudo) end)
 bInfo.MouseButton1Click:Connect(function() mudarAba(bInfo,InfoConteudo) end)
 
 print("✅ PARTE 3 CARREGADA - ABA CONFIGURAÇÕES + INFO")
--- @Noobzinx v4 - PARTE 4 (INALTERADO)
+-- @Noobzinx v4 - PARTE 4 (FPS MAIS LENTO)
+-- ════════════ HITBOX AMPLIADA (CONGELA PLAYERS) ════════════
 local hitboxConnection = nil
 
 function ativarHitbox()
@@ -605,6 +606,8 @@ function puxarPlayers()
     print("💀 "..puxados.." players puxados para sua frente!")
 end
 
+-- ════════════ FIM PUXAR PLAYERS ════════════
+
 -- ESP
 local desenhosESP = {}
 local tempoCor = 0
@@ -621,14 +624,27 @@ P.PlayerRemoving:Connect(function(p)
     end
 end)
 
+-- 🔥 CONTADOR DE FPS MAIS LENTO (ATUALIZA A CADA 1 SEGUNDO)
+local fpsTimer = 0
+local fpsAtual = 0
+
 RS.Heartbeat:Connect(function(delta)
-    if lblFPS then lblFPS.Text = "FPS: "..math.floor(1/delta) end
+    -- Atualiza FPS a cada 1 segundo (em vez de todo frame)
+    fpsTimer = fpsTimer + delta
+    if fpsTimer >= 1 then
+        fpsAtual = math.floor(1/delta)
+        fpsTimer = 0
+        if lblFPS then
+            lblFPS.Text = "FPS: "..fpsAtual
+        end
+    end
 
     local char = LP.Character
     if char and char:FindFirstChild("Humanoid") then
         local hum = char.Humanoid
         hum.WalkSpeed = S.Speed and S.SpeedMul or 16
-        hum.JumpHeight = S.SuperJump and 12 or 2
+        hum.JumpHeight = S.SuperJump and 35 or 2
+        
         for _,parte in pairs(char:GetChildren()) do
             if parte:IsA("BasePart") then parte.CanCollide = not S.AtravessarParede end
         end
@@ -720,18 +736,49 @@ RS.Heartbeat:Connect(function(delta)
     end
 end)
 
--- Aimbot
+-- ════════════ AIMBOT (SÓ MIRA EM INIMIGOS) ════════════
 local circuloFOV = Drawing.new("Circle")
 circuloFOV.Thickness = 4
 circuloFOV.Color = Color3.fromRGB(255,0,0)
 
 function jogadorValido(p)
-    return p and p~=LP and p.Character and p.Character:FindFirstChild("Humanoid")
-    and p.Character.Humanoid.Health>0 and p.Character:FindFirstChild(S.TargetPart)
+    if not p or p == LP then return false end
+    if not p.Character then return false end
+    
+    local hum = p.Character:FindFirstChild("Humanoid")
+    if not hum or hum.Health <= 0 then return false end
+    
+    if not p.Character:FindFirstChild(S.TargetPart) then return false end
+    
+    local meuTime = LP.Team
+    local timeInimigo = p.Team
+    
+    if meuTime and timeInimigo and meuTime ~= timeInimigo then
+        return true
+    end
+    
+    if not meuTime and not timeInimigo then
+        return true
+    end
+    
+    if meuTime and not timeInimigo then
+        return true
+    end
+    
+    if not meuTime and timeInimigo then
+        return true
+    end
+    
+    if meuTime == timeInimigo then
+        return false
+    end
+    
+    return true
 end
 
 function visivel(p)
     local pt = p.Character[S.TargetPart]
+    if not pt then return false end
     local ray = RaycastParams.new()
     ray.FilterDescendantsInstances = {LP.Character}
     ray.FilterType = Enum.RaycastFilterType.Exclude
@@ -744,10 +791,13 @@ function pegarAlvo()
     local centro = Vector2.new(C.ViewportSize.X/2,C.ViewportSize.Y/2)
     for _,p in pairs(P:GetPlayers()) do
         if jogadorValido(p) then
-            local pos,tela = C:WorldToViewportPoint(p.Character[S.TargetPart].Position)
-            if tela then
-                local d = (Vector2.new(pos.X,pos.Y)-centro).Magnitude
-                if d < dist and visivel(p) then dist=d; alvo=p end
+            local part = p.Character:FindFirstChild(S.TargetPart)
+            if part then
+                local pos,tela = C:WorldToViewportPoint(part.Position)
+                if tela then
+                    local d = (Vector2.new(pos.X,pos.Y)-centro).Magnitude
+                    if d < dist and visivel(p) then dist=d; alvo=p end
+                end
             end
         end
     end
@@ -762,14 +812,20 @@ RS.RenderStepped:Connect(function()
     if S.Aimbot then
         local alvo = pegarAlvo()
         if alvo then
-            local nova = CFrame.new(C.CFrame.Position, alvo.Character[S.TargetPart].Position)
-            C.CFrame = C.CFrame:Lerp(nova,1 - S.Smooth)
+            local part = alvo.Character:FindFirstChild(S.TargetPart)
+            if part then
+                local nova = CFrame.new(C.CFrame.Position, part.Position)
+                C.CFrame = C.CFrame:Lerp(nova,1 - S.Smooth)
+            end
         end
     end
 end)
 
+-- Inicia funções se já estiverem ativadas
 if S.HitboxAmpliada then ativarHitbox() end
 if S.GirarRapido then ativarGirar() end
 
 print("✅ @Noobzinx v4 - PARTE 4 CARREGADA!")
-print("💜 BOTÃO FECHAR CORRIGIDO - TUDO FUNCIONANDO!")
+print("🦘 SUPER JUMP AUMENTADO!")
+print("🎯 AIMBOT SÓ MIRA EM INIMIGOS!")
+print("📊 FPS ATUALIZA A CADA 1 SEGUNDO!")

@@ -479,7 +479,7 @@ bConf.MouseButton1Click:Connect(function() mudarAba(bConf,ConfConteudo) end)
 bInfo.MouseButton1Click:Connect(function() mudarAba(bInfo,InfoConteudo) end)
 
 print("✅ PARTE 3 CARREGADA - ABA CONFIGURAÇÕES + INFO")
--- @Noobzinx v4 - PARTE 4 (FPS MAIS LENTO)
+-- @Noobzinx v4 - PARTE 4 (ESP SEM BUG DE NOME)
 -- ════════════ HITBOX AMPLIADA (CONGELA PLAYERS) ════════════
 local hitboxConnection = nil
 
@@ -582,7 +582,7 @@ function desativarGirar()
     end
 end
 
--- ════════════ PUXAR PLAYERS (SÓ PUXA, NÃO MATA) ════════════
+-- ════════════ PUXAR PLAYERS ════════════
 function puxarPlayers()
     if not S.KillAll then return end
     
@@ -606,9 +606,7 @@ function puxarPlayers()
     print("💀 "..puxados.." players puxados para sua frente!")
 end
 
--- ════════════ FIM PUXAR PLAYERS ════════════
-
--- ESP
+-- ════════════ ESP CORRIGIDO (SEM BUG DE NOME) ════════════
 local desenhosESP = {}
 local tempoCor = 0
 
@@ -617,19 +615,34 @@ local function pegarCorRainbow()
     return Color3.fromHSV(tempoCor % 1, 1, 1)
 end
 
-P.PlayerRemoving:Connect(function(p)
+-- 🔥 FUNÇÃO PARA LIMPAR TODOS OS DESENHOS DE UM JOGADOR
+local function limparDesenhosJogador(p)
     if desenhosESP[p] then
-        for _,obj in pairs(desenhosESP[p]) do obj:Remove() end
+        for _, obj in pairs(desenhosESP[p]) do
+            pcall(function() obj:Remove() end)
+        end
         desenhosESP[p] = nil
     end
+end
+
+-- 🔥 LIMPA TUDO QUANDO DESATIVA O ESP
+local function limparTodosDesenhos()
+    for p, _ in pairs(desenhosESP) do
+        limparDesenhosJogador(p)
+    end
+    desenhosESP = {}
+end
+
+-- 🔥 QUANDO UM JOGADOR SAI, LIMPA OS DESENHOS DELE
+P.PlayerRemoving:Connect(function(p)
+    limparDesenhosJogador(p)
 end)
 
--- 🔥 CONTADOR DE FPS MAIS LENTO (ATUALIZA A CADA 1 SEGUNDO)
 local fpsTimer = 0
 local fpsAtual = 0
 
 RS.Heartbeat:Connect(function(delta)
-    -- Atualiza FPS a cada 1 segundo (em vez de todo frame)
+    -- FPS lento
     fpsTimer = fpsTimer + delta
     if fpsTimer >= 1 then
         fpsAtual = math.floor(1/delta)
@@ -639,6 +652,7 @@ RS.Heartbeat:Connect(function(delta)
         end
     end
 
+    -- Speed / Super Jump / NoClip
     local char = LP.Character
     if char and char:FindFirstChild("Humanoid") then
         local hum = char.Humanoid
@@ -650,53 +664,73 @@ RS.Heartbeat:Connect(function(delta)
         end
     end
 
-    for ply in pairs(desenhosESP) do
-        if not ply.Character or not ply.Character:FindFirstChild("Humanoid") or ply.Character.Humanoid.Health <= 0 then
-            for _,obj in pairs(desenhosESP[ply]) do obj:Remove() end
-            desenhosESP[ply] = nil
+    -- 🔥 ESP: REMOVE JOGADORES MORTO
+    for p, _ in pairs(desenhosESP) do
+        if not p or not p.Character or not p.Character:FindFirstChild("Humanoid") or p.Character.Humanoid.Health <= 0 then
+            limparDesenhosJogador(p)
         end
     end
 
+    -- Se ESP estiver desativado, limpa tudo e sai
     if not S.ESP then
-        for _,d in pairs(desenhosESP) do
+        limparTodosDesenhos()
+        return
+    end
+
+    -- 🔥 CRIA DESENHOS PARA JOGADORES QUE NÃO TÊM
+    for _, p in pairs(P:GetPlayers()) do
+        if p ~= LP and not desenhosESP[p] then
+            local hum = p.Character and p.Character:FindFirstChild("Humanoid")
+            if hum and hum.Health > 0 then
+                desenhosESP[p] = {
+                    box = Drawing.new("Square"),
+                    bgVida = Drawing.new("Square"),
+                    barraVida = Drawing.new("Square"),
+                    name = Drawing.new("Text"),
+                    linha = Drawing.new("Line"),
+                    dist = Drawing.new("Text")
+                }
+                desenhosESP[p].box.Thickness = 3
+                desenhosESP[p].bgVida.Filled = true
+                desenhosESP[p].bgVida.Color = Color3.fromRGB(30,30,30)
+                desenhosESP[p].barraVida.Filled = true
+                desenhosESP[p].barraVida.Color = Color3.fromRGB(0,210,0)
+                desenhosESP[p].name.Color = Color3.fromRGB(255,200,0)
+                desenhosESP[p].linha.Thickness = 2
+                desenhosESP[p].dist.Color = Color3.fromRGB(255,255,255)
+            end
+        end
+    end
+
+    -- 🔥 ATUALIZA POSIÇÕES DOS DESENHOS
+    for p, d in pairs(desenhosESP) do
+        if not p or not p.Character then
+            limparDesenhosJogador(p)
+            continue
+        end
+        
+        local root = p.Character:FindFirstChild("HumanoidRootPart")
+        local hum = p.Character:FindFirstChild("Humanoid")
+        if not root or not hum or hum.Health <= 0 then
             d.box.Visible = false
             d.bgVida.Visible = false
             d.barraVida.Visible = false
             d.name.Visible = false
             d.linha.Visible = false
             d.dist.Visible = false
+            continue
         end
-        return
-    end
-
-    for _,p in pairs(P:GetPlayers()) do
-        if p ~= LP and not desenhosESP[p] then
-            desenhosESP[p] = {
-                box = Drawing.new("Square"),
-                bgVida = Drawing.new("Square"),
-                barraVida = Drawing.new("Square"),
-                name = Drawing.new("Text"),
-                linha = Drawing.new("Line"),
-                dist = Drawing.new("Text")
-            }
-            desenhosESP[p].box.Thickness = 3
-            desenhosESP[p].bgVida.Filled = true
-            desenhosESP[p].bgVida.Color = Color3.fromRGB(30,30,30)
-            desenhosESP[p].barraVida.Filled = true
-            desenhosESP[p].barraVida.Color = Color3.fromRGB(0,210,0)
-            desenhosESP[p].name.Color = Color3.fromRGB(255,200,0)
-            desenhosESP[p].linha.Thickness = 2
-            desenhosESP[p].dist.Color = Color3.fromRGB(255,255,255)
+        
+        local pos, onScreen = C:WorldToViewportPoint(root.Position)
+        if not onScreen then
+            d.box.Visible = false
+            d.bgVida.Visible = false
+            d.barraVida.Visible = false
+            d.name.Visible = false
+            d.linha.Visible = false
+            d.dist.Visible = false
+            continue
         end
-    end
-
-    for p,d in pairs(desenhosESP) do
-        if not p.Character then continue end
-        local root = p.Character:FindFirstChild("HumanoidRootPart")
-        local hum = p.Character:FindFirstChild("Humanoid")
-        if not root or not hum or hum.Health <= 0 then continue end
-        local pos,on = C:WorldToViewportPoint(root.Position)
-        if not on then d.box.Visible=false; continue end
 
         local cor = S.Rainbow and pegarCorRainbow() or Color3.fromRGB(255,0,0)
         d.box.Color = cor
@@ -710,28 +744,32 @@ RS.Heartbeat:Connect(function(delta)
         d.dist.Visible = S.ESP_Distancia
 
         if S.ESP_Caixa then
-            local tam = math.clamp(380/pos.Z,8,700)
-            d.box.Size = Vector2.new(tam,tam*1.8)
-            d.box.Position = Vector2.new(pos.X-tam/2,pos.Y-tam)
+            local tam = math.clamp(380/pos.Z, 8, 700)
+            d.box.Size = Vector2.new(tam, tam * 1.8)
+            d.box.Position = Vector2.new(pos.X - tam/2, pos.Y - tam)
         end
+        
         if S.ESP_Nome then
             d.name.Text = p.Name
-            d.name.Position = Vector2.new(pos.X,pos.Y-50)
+            d.name.Position = Vector2.new(pos.X, pos.Y - 50)
         end
+        
         if S.ESP_Vida then
-            local porc = math.max(hum.Health/hum.MaxHealth,0)
-            d.bgVida.Size = Vector2.new(5,50)
-            d.bgVida.Position = Vector2.new(pos.X-45,pos.Y-35)
-            d.barraVida.Size = Vector2.new(5,50*porc)
-            d.barraVida.Position = Vector2.new(pos.X-45,pos.Y-35+(50*(1-porc)))
+            local porc = math.max(hum.Health / hum.MaxHealth, 0)
+            d.bgVida.Size = Vector2.new(5, 50)
+            d.bgVida.Position = Vector2.new(pos.X - 45, pos.Y - 35)
+            d.barraVida.Size = Vector2.new(5, 50 * porc)
+            d.barraVida.Position = Vector2.new(pos.X - 45, pos.Y - 35 + (50 * (1 - porc)))
         end
+        
         if S.ESP_Linha then
-            d.linha.From = Vector2.new(C.ViewportSize.X/2,C.ViewportSize.Y)
-            d.linha.To = Vector2.new(pos.X,pos.Y)
+            d.linha.From = Vector2.new(C.ViewportSize.X / 2, C.ViewportSize.Y)
+            d.linha.To = Vector2.new(pos.X, pos.Y)
         end
+        
         if S.ESP_Distancia then
-            d.dist.Text = math.floor((root.Position - C.CFrame.Position).Magnitude).."m"
-            d.dist.Position = Vector2.new(pos.X,pos.Y+40)
+            d.dist.Text = math.floor((root.Position - C.CFrame.Position).Magnitude) .. "m"
+            d.dist.Position = Vector2.new(pos.X, pos.Y + 40)
         end
     end
 end)
@@ -829,3 +867,4 @@ print("✅ @Noobzinx v4 - PARTE 4 CARREGADA!")
 print("🦘 SUPER JUMP AUMENTADO!")
 print("🎯 AIMBOT SÓ MIRA EM INIMIGOS!")
 print("📊 FPS ATUALIZA A CADA 1 SEGUNDO!")
+print("🧹 ESP CORRIGIDO - SEM BUG DE NOME!")
